@@ -1,9 +1,10 @@
 use clap::Parser;
 use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{Rng, rngs::SmallRng, SeedableRng};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use rand::distributions::WeightedIndex;
 
 #[derive(Parser, Debug)]
 struct Cli {
@@ -23,7 +24,7 @@ struct Cli {
 fn main() {
     let options = Cli::parse();
 
-    let sequence = generate(options.length);
+    let sequence = generate(options.length, &mut SmallRng::from_entropy());
     let output = BufWriter::new(File::create(options.sequence_out).unwrap());
     write_fasta_record("random_reference", sequence.as_slice(), output);
 
@@ -41,27 +42,25 @@ fn main() {
     println!("Done");
 }
 
-fn generate(length: usize) -> Vec<u8> {
+fn generate(length: usize, rng: &mut impl Rng) -> Vec<u8> {
     let alphabet = [b'A', b'C', b'G', b'T'];
     let mut result = Vec::new();
 
+    let repetition_weights = (0..100).map(|r| if r == 0 {0.0} else {0.9f32.powi(r - 1)
+        + if r <= 2 {
+        200.0
+    } else if r <= 4 {
+        40.0
+    } else if r <= 10 {
+        1.0
+    } else {
+        0.0
+    }});
+    let repetition_distribution = WeightedIndex::new(repetition_weights).unwrap();
+
     while result.len() < length {
-        let character = *alphabet.choose(&mut thread_rng()).unwrap();
-        let repetitions = *(1..100)
-            .collect::<Vec<_>>()
-            .choose_weighted(&mut thread_rng(), |&r| {
-                0.9f32.powi(r - 1)
-                    + if r <= 2 {
-                        200.0
-                    } else if r <= 4 {
-                        40.0
-                    } else if r <= 10 {
-                        1.0
-                    } else {
-                        0.0
-                    }
-            })
-            .unwrap();
+        let character = *alphabet.choose(rng).unwrap();
+        let repetitions = rng.sample(&repetition_distribution);
 
         for _ in 0..repetitions {
             if result.len() >= length {
