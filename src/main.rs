@@ -19,6 +19,9 @@ struct Cli {
 
     #[clap(long, requires = "subsequence-length")]
     subsequence_out: Option<PathBuf>,
+
+    #[clap(long)]
+    fasta_linewidth: Option<usize>,
 }
 
 fn main() {
@@ -26,7 +29,7 @@ fn main() {
 
     let sequence = generate(options.length, &mut SmallRng::from_entropy());
     let output = BufWriter::new(File::create(options.sequence_out).unwrap());
-    write_fasta_record("random_reference", sequence.as_slice(), output);
+    write_fasta_record("random_reference", sequence.as_slice(), output, options.fasta_linewidth);
 
     if let Some(subsequence_length) = options.subsequence_length {
         let mut output = BufWriter::new(File::create(options.subsequence_out.unwrap()).unwrap());
@@ -35,8 +38,8 @@ fn main() {
         let subsequence = &sequence[sequence.len() - subsequence_length..];
         let reverse_complement = reverse_complement(subsequence);
 
-        write_fasta_record("random_contig", subsequence, &mut output);
-        write_fasta_record("random_contig_rev", reverse_complement.as_slice(), output);
+        write_fasta_record("random_contig", subsequence, &mut output, options.fasta_linewidth);
+        write_fasta_record("random_contig_rev", reverse_complement.as_slice(), output, options.fasta_linewidth);
     }
 
     println!("Done");
@@ -88,8 +91,15 @@ fn reverse_complement(forwards: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-fn write_fasta_record(name: &str, sequence: &[u8], mut writer: impl Write) {
+fn write_fasta_record(name: &str, sequence: &[u8], mut writer: impl Write, line_width: Option<usize>) {
     writeln!(writer, ">{name}").unwrap();
-    writer.write_all(sequence).unwrap();
-    writeln!(writer).unwrap();
+    if let Some(line_width) = line_width {
+        for chunk in sequence.chunks(line_width) {
+            writer.write_all(chunk).unwrap();
+            writeln!(writer).unwrap();
+        }
+    } else {
+        writer.write_all(sequence).unwrap();
+        writeln!(writer).unwrap();
+    }
 }
