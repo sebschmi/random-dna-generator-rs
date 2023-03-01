@@ -42,7 +42,7 @@ fn main() {
         write_fasta_record("random_contig_rev", reverse_complement.as_slice(), output, options.fasta_linewidth);
     }
 
-    println!("Done");
+    println!("Done.");
 }
 
 fn generate(length: usize, rng: &mut impl Rng) -> Vec<u8> {
@@ -50,8 +50,8 @@ fn generate(length: usize, rng: &mut impl Rng) -> Vec<u8> {
     let mut result = Vec::new();
 
     let repetition_weights = (0..100).map(|r| if r == 0 {0.0} else {0.9f32.powi(r - 1)
-        + if r <= 2 {
-        200.0
+        + if r <= 1 {
+        2000.0
     } else if r <= 4 {
         40.0
     } else if r <= 10 {
